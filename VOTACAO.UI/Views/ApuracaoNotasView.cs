@@ -320,9 +320,6 @@ public class ApuracaoNotasView : UserControl, IRefreshableView
                         nota = parsed;
                     }
 
-                    if (nota < 0 || nota > 10)
-                        throw new InvalidOperationException($"A nota para '{participante.Nome}' no critério '{criterio.Nome}' deve estar entre 0 e 10.");
-
                     notasParaSalvar.Add((participante.Id, criterio.Id, nota));
                 }
             }

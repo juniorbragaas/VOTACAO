@@ -68,9 +68,6 @@ public class ApuracaoNotasService : IApuracaoNotasService
             if (nota.IdCriterio <= 0)
                 throw new DomainException("Critério inválido.");
 
-            if (nota.Nota < 0 || nota.Nota > 10)
-                throw new DomainException("A nota deve estar entre 0 e 10.");
-
             var participante = await _participanteRepository.ObterPorIdAsync(nota.IdParticipante);
             if (participante == null)
                 throw new DomainException($"Participante {nota.IdParticipante} não encontrado.");
@@ -138,9 +135,6 @@ public class ApuracaoNotasService : IApuracaoNotasService
 
         if (idCriterio <= 0)
             throw new DomainException("Critério inválido.");
-
-        if (nota < 0 || nota > 10)
-            throw new DomainException("A nota deve estar entre 0 e 10.");
 
         var jurado = await _juradoRepository.ObterPorIdAsync(idJurado);
         if (jurado == null)

@@ -1,4 +1,5 @@
 using System.Data.OleDb;
+using VOTACAO.Data;
 using VOTACAO.Infrastructure.Database;
 using VOTACAO.Infrastructure.Logging;
 
@@ -127,41 +128,11 @@ public class DbMigrationEngine
         return 0;
     }
 
-    private void GarantirTabelaVoto()
-    {
-        using var conn = _connectionFactory.CreateConnection();
-        conn.Open();
-
-        try
-        {
-            using var cmd = new OleDbCommand("SELECT COUNT(*) FROM Voto", conn);
-            cmd.ExecuteScalar();
-            return;
-        }
-        catch
-        {
-            string sql = @"CREATE TABLE Voto (
-                Id AUTOINCREMENT PRIMARY KEY,
-                IdJurado INT NOT NULL,
-                IdParticipante INT NOT NULL,
-                IdCriterio INT NOT NULL,
-                Nota INT NOT NULL
-            );";
-
-            try
-            {
-                using var cmd = new OleDbCommand(sql, conn);
-                cmd.ExecuteNonQuery();
-            }
-            catch
-            {
-            }
-        }
-    }
+    
 
     private void ExecutarMigracoes()
     {
-        GarantirTabelaVoto();
+        
 
         using var conn = _connectionFactory.CreateConnection();
         conn.Open();
@@ -177,45 +148,6 @@ public class DbMigrationEngine
                     DataNascimento DATETIME NOT NULL,
                     Categoria INT NOT NULL
                 );",
-
-                @"CREATE TABLE CandidatosOpcoes (
-                    Id AUTOINCREMENT PRIMARY KEY,
-                    Numero INT NOT NULL,
-                    Nome TEXT(150) NOT NULL,
-                    Cargo TEXT(100) NOT NULL,
-                    Foto TEXT(255),
-                    Ativo YESNO NOT NULL
-                );",
-                @"CREATE UNIQUE INDEX UX_Candidatos_Num ON CandidatosOpcoes (Numero);",
-
-                @"CREATE TABLE Eleicoes (
-                    Id AUTOINCREMENT PRIMARY KEY,
-                    Titulo TEXT(150) NOT NULL,
-                    Descricao MEMO,
-                    DataInicio DATETIME NOT NULL,
-                    DataFim DATETIME,
-                    Status INT NOT NULL,
-                    PermiteVotoBrancoNulo YESNO NOT NULL
-                );",
-
-                @"CREATE TABLE Votos (
-                    Id AUTOINCREMENT PRIMARY KEY,
-                    EleicaoId INT NOT NULL,
-                    CandidatoOpcaoId INT,
-                    IsBranco YESNO NOT NULL,
-                    IsNulo YESNO NOT NULL,
-                    DataHora DATETIME NOT NULL,
-                    HashIntegridade TEXT(128) NOT NULL
-                );",
-
-                @"CREATE TABLE RegistroParticipacoes (
-                    Id AUTOINCREMENT PRIMARY KEY,
-                    EleicaoId INT NOT NULL,
-                    ParticipanteId INT NOT NULL,
-                    DataHoraVoto DATETIME NOT NULL
-                );",
-                @"CREATE UNIQUE INDEX UX_Part_Eleicao ON RegistroParticipacoes (EleicaoId, ParticipanteId);",
-
                 @"CREATE TABLE Auditoria (
                     Id AUTOINCREMENT PRIMARY KEY,
                     Acao TEXT(100) NOT NULL,
@@ -224,36 +156,6 @@ public class DbMigrationEngine
                     DataHora DATETIME NOT NULL
                 );"
             }, false),
-
-            (2, "Carga Inicial (Seed) de Eleicao e Candidatos Demonstrativos", new List<string>
-            {
-                @"INSERT INTO Eleicoes (Titulo, Descricao, DataInicio, Status, PermiteVotoBrancoNulo)
-                  VALUES ('Eleição Diretoria & Conselho 2026', 'Processo eleitoral oficial para mandato 2026-2028', NOW(), 1, TRUE);",
-
-                @"INSERT INTO CandidatosOpcoes (Numero, Nome, Cargo, Ativo) VALUES (10, 'Chapa 1 - Inovação e Transparência', 'Diretoria Geral', TRUE);",
-                @"INSERT INTO CandidatosOpcoes (Numero, Nome, Cargo, Ativo) VALUES (20, 'Chapa 2 - Renovação e Participação', 'Diretoria Geral', TRUE);",
-                @"INSERT INTO CandidatosOpcoes (Numero, Nome, Cargo, Ativo) VALUES (30, 'Chapa 3 - Integração e Futuro', 'Diretoria Geral', TRUE);",
-
-                @"INSERT INTO Participantes (Nome, DataNascimento, Categoria) VALUES ('Ana Carolina Mendes', #1990-05-15#, 1);",
-                @"INSERT INTO Participantes (Nome, DataNascimento, Categoria) VALUES ('Bruno Henrique Lima', #1992-08-22#, 1);",
-                @"INSERT INTO Participantes (Nome, DataNascimento, Categoria) VALUES ('Carlos Eduardo Silva', #1988-03-10#, 1);",
-                @"INSERT INTO Participantes (Nome, DataNascimento, Categoria) VALUES ('Daniela Freitas Ramos', #2008-11-30#, 2);",
-                @"INSERT INTO Participantes (Nome, DataNascimento, Categoria) VALUES ('Eduardo Moreira Santos', #1991-07-18#, 1);"
-            }, false),
-
-            (3, "Reestruturacao da Tabela Participantes (Categoria ADULTO/TEEN)", new List<string>
-            {
-                @"ALTER TABLE Participantes ADD COLUMN DataNascimento DATETIME;",
-                @"ALTER TABLE Participantes ADD COLUMN Categoria INT;",
-                @"UPDATE Participantes SET DataNascimento = #2000-01-01#, Categoria = 1 WHERE DataNascimento IS NULL;",
-                @"DROP INDEX UX_Participantes_Doc ON Participantes;",
-                @"DROP INDEX UX_Participantes_Mat ON Participantes;",
-                @"ALTER TABLE Participantes DROP COLUMN Documento;",
-                @"ALTER TABLE Participantes DROP COLUMN Matricula;",
-                @"ALTER TABLE Participantes DROP COLUMN Situacao;",
-                @"ALTER TABLE Participantes DROP COLUMN DataCadastro;"
-            }, true),
-
             (4, "Cadastro de Jurados", new List<string>
             {
                 @"CREATE TABLE Jurados (
@@ -291,6 +193,25 @@ public class DbMigrationEngine
                 _logger.LogInfo($"Aplicando Migração V{mig.Versao}: {mig.Descricao}");
                 foreach (var sql in mig.Scripts)
                 {
+                    var instrucao = sql.TrimStart();
+                    if (instrucao.StartsWith("CREATE TABLE ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var nomeTabela = instrucao["CREATE TABLE ".Length..].Split(new[] { ' ', '\r', '\n', '(' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                        if (TabelaExiste(conn, nomeTabela))
+                        {
+                            continue;
+                        }
+                    }
+
+                    // A base pode ter sido criada antes do controle de versões. Nesse
+                    // caso, a migração V6 precisa aceitar a tabela e o índice existentes.
+                    if (mig.Versao == 6 &&
+                        (TabelaExiste(conn, "Voto") && sql.TrimStart().StartsWith("CREATE TABLE Voto", StringComparison.OrdinalIgnoreCase) ||
+                         IndiceExiste(conn, "Voto", "UX_Voto_Jurado_Participante_Criterio") && sql.TrimStart().StartsWith("CREATE UNIQUE INDEX UX_Voto_Jurado_Participante_Criterio", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
                     using var cmd = new OleDbCommand(sql, conn);
                     try
                     {
@@ -319,5 +240,21 @@ public class DbMigrationEngine
                 _logger.LogInfo($"Migração V{mig.Versao} aplicada com sucesso.");
             }
         }
+    }
+
+    private static bool TabelaExiste(OleDbConnection conn, string nomeTabela)
+    {
+        var tabelas = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
+        return tabelas?.Rows.Cast<System.Data.DataRow>().Any(row =>
+            string.Equals(Convert.ToString(row["TABLE_NAME"]), nomeTabela, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(Convert.ToString(row["TABLE_TYPE"]), "TABLE", StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static bool IndiceExiste(OleDbConnection conn, string nomeTabela, string nomeIndice)
+    {
+        var indices = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Indexes, null);
+        return indices?.Rows.Cast<System.Data.DataRow>().Any(row =>
+            string.Equals(Convert.ToString(row["TABLE_NAME"]), nomeTabela, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(Convert.ToString(row["INDEX_NAME"]), nomeIndice, StringComparison.OrdinalIgnoreCase)) == true;
     }
 }

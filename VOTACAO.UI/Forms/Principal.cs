@@ -38,30 +38,49 @@ public class Principal : Form
         pnlCabecalho = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 70,
+            Height = 78,
             BackColor = Color.FromArgb(27, 54, 93),
-            Padding = new Padding(25, 0, 25, 0)
+            Padding = Padding.Empty
         };
+
+        var layoutCabecalho = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            BackColor = Color.Transparent
+        };
+        layoutCabecalho.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layoutCabecalho.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        layoutCabecalho.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
 
         var lblLogo = new Label
         {
             Text = "AVALIAÇÃO DE MODELOS",
             Font = new Font("Segoe UI", 15F, FontStyle.Bold),
             ForeColor = Color.White,
-            Location = new Point(25, 20),
-            AutoSize = true
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = true,
+            Margin = Padding.Empty
         };
 
         var lblSubtitulo = new Label
         {
             Text = "SISTEMA INTEGRADO DE GESTÃO E AVALIAÇÃO",
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
             ForeColor = Color.FromArgb(203, 213, 225),
-            Location = new Point(260, 27),
-            AutoSize = true
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = true,
+            Margin = Padding.Empty
         };
 
-        pnlCabecalho.Controls.AddRange(new Control[] { lblLogo, lblSubtitulo });
+        layoutCabecalho.Controls.Add(lblLogo, 0, 0);
+        layoutCabecalho.Controls.Add(lblSubtitulo, 0, 1);
+        pnlCabecalho.Controls.Add(layoutCabecalho);
 
         // 2. RODAPÉ
         pnlRodape = new Panel
@@ -69,28 +88,21 @@ public class Principal : Form
             Dock = DockStyle.Bottom,
             Height = 35,
             BackColor = Color.FromArgb(30, 41, 59),
-            Padding = new Padding(20, 0, 20, 0)
+            Padding = new Padding(12, 0, 12, 0)
         };
 
-        var lblCopyright = new Label
+        var lblRodape = new Label
         {
-            Text = "© 2026 AVALIAÇÃO DE MODELOS – Todos os direitos reservados.",
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            Text = "© 2026 AVALIAÇÃO DE MODELOS – Todos os direitos reservados.   |   Banco de Dados: Microsoft Access (.MDB) Conectado",
+            Font = new Font("Segoe UI", 8F, FontStyle.Regular),
             ForeColor = Color.FromArgb(148, 163, 184),
-            Dock = DockStyle.Left,
-            TextAlign = ContentAlignment.MiddleLeft
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = true,
+            Margin = Padding.Empty
         };
 
-        var lblStatusDb = new Label
-        {
-            Text = "Banco de Dados: Microsoft Access (.MDB) Conectado",
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
-            ForeColor = Color.FromArgb(52, 211, 153),
-            Dock = DockStyle.Right,
-            TextAlign = ContentAlignment.MiddleRight
-        };
-
-        pnlRodape.Controls.AddRange(new Control[] { lblCopyright, lblStatusDb });
+        pnlRodape.Controls.Add(lblRodape);
 
         // 3. MENU (horizontal, abaixo do cabeçalho)
         pnlMenu = new Panel
@@ -146,7 +158,7 @@ public class Principal : Form
         btnResultados = CriarBotaoMenu("Consultas",585);
         btnResultados.Click += (s, e) => { AtivarBotaoMenu(btnResultados); _navigationService.NavigateTo<ResultadosSqlView>(); };
 
-        var btnDiculgacao = CriarBotaoMenu("Resultados", 775);
+        var btnDiculgacao = CriarBotaoMenu("Resultados Votação", 775);
         btnDiculgacao.Click += (s, e) => { AtivarBotaoMenu(btnDiculgacao); _navigationService.NavigateTo<DiculgacaoView>(); };
 
         pnlMenu.Controls.AddRange(new Control[] { btnSobre, btnResultados, btnCadastros, btnApuracao, btnDiculgacao });

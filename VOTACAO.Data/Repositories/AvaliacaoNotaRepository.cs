@@ -1,7 +1,9 @@
 using System.Data.OleDb;
+using VOTACAO.Infrastructure.Database;
 using VOTACAO.Domain.Entities;
 using VOTACAO.Domain.Interfaces;
-using VOTACAO.Infrastructure.Database;
+
+
 
 namespace VOTACAO.Data.Repositories;
 
@@ -19,27 +21,21 @@ public class AvaliacaoNotaRepository : IAvaliacaoNotaRepository
         using var conn = _connectionFactory.CreateConnection();
         await conn.OpenAsync();
 
-        try
+        var tabelas = conn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
+        bool tabelaVotoExiste = tabelas?.Rows.Cast<System.Data.DataRow>().Any(row =>
+            string.Equals(Convert.ToString(row["TABLE_NAME"]), "Voto", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(Convert.ToString(row["TABLE_TYPE"]), "TABLE", StringComparison.OrdinalIgnoreCase)) == true;
+
+        if (!tabelaVotoExiste)
         {
-            using var prova = new OleDbCommand("SELECT COUNT(*) FROM Voto", conn);
-            await prova.ExecuteScalarAsync();
-        }
-        catch
-        {
-            try
-            {
-                using var cmd = new OleDbCommand(@"CREATE TABLE Voto (
+            using var cmd = new OleDbCommand(@"CREATE TABLE Voto (
                     Id AUTOINCREMENT PRIMARY KEY,
                     IdJurado INT NOT NULL,
                     IdParticipante INT NOT NULL,
                     IdCriterio INT NOT NULL,
                     Nota INT NOT NULL
                 );", conn);
-                await cmd.ExecuteNonQueryAsync();
-            }
-            catch
-            {
-            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         try
