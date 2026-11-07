@@ -1,0 +1,204 @@
+using System.Drawing;
+using System.Windows.Forms;
+using VOTACAO.UI.Navigation;
+using VOTACAO.UI.Views;
+
+namespace VOTACAO.UI.Forms;
+
+public class Principal : Form
+{
+    private readonly INavigationService _navigationService;
+
+    private Panel pnlCabecalho = null!;
+    private Panel pnlMenu = null!;
+    private Panel pnlConteudo = null!;
+    private Panel pnlRodape = null!;
+
+    private Button btnSobre = null!;
+    private Button btnResultados = null!;
+    private Button btnCadastros = null!;
+    private Button btnApuracao = null!;
+
+    public Principal(INavigationService navigationService)
+    {
+        _navigationService = navigationService;
+        InitializeLayout();
+    }
+
+    private void InitializeLayout()
+    {
+        this.Text = "AVALIAÇÃO DE MODELOS – Sistema de Avaliação Corporativa";
+        this.Size = new Size(1180, 760);
+        this.MinimumSize = new Size(1000, 650);
+        this.StartPosition = FormStartPosition.CenterScreen;
+        this.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+        this.BackColor = Color.FromArgb(248, 250, 252);
+
+        // 1. CABEÇALHO
+        pnlCabecalho = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 70,
+            BackColor = Color.FromArgb(27, 54, 93),
+            Padding = new Padding(25, 0, 25, 0)
+        };
+
+        var lblLogo = new Label
+        {
+            Text = "AVALIAÇÃO DE MODELOS",
+            Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+            ForeColor = Color.White,
+            Location = new Point(25, 20),
+            AutoSize = true
+        };
+
+        var lblSubtitulo = new Label
+        {
+            Text = "SISTEMA INTEGRADO DE GESTÃO E AVALIAÇÃO",
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            ForeColor = Color.FromArgb(203, 213, 225),
+            Location = new Point(260, 27),
+            AutoSize = true
+        };
+
+        pnlCabecalho.Controls.AddRange(new Control[] { lblLogo, lblSubtitulo });
+
+        // 2. RODAPÉ
+        pnlRodape = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 35,
+            BackColor = Color.FromArgb(30, 41, 59),
+            Padding = new Padding(20, 0, 20, 0)
+        };
+
+        var lblCopyright = new Label
+        {
+            Text = "© 2026 AVALIAÇÃO DE MODELOS – Todos os direitos reservados.",
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            ForeColor = Color.FromArgb(148, 163, 184),
+            Dock = DockStyle.Left,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        var lblStatusDb = new Label
+        {
+            Text = "Banco de Dados: Microsoft Access (.MDB) Conectado",
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+            ForeColor = Color.FromArgb(52, 211, 153),
+            Dock = DockStyle.Right,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+
+        pnlRodape.Controls.AddRange(new Control[] { lblCopyright, lblStatusDb });
+
+        // 3. MENU (horizontal, abaixo do cabeçalho)
+        pnlMenu = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 52,
+            BackColor = Color.White
+        };
+
+        // Linha separadora inferior do menu
+        pnlMenu.Paint += (s, e) =>
+        {
+            using var pen = new Pen(Color.FromArgb(226, 232, 240), 1);
+            e.Graphics.DrawLine(pen, 0, pnlMenu.Height - 1, pnlMenu.Width, pnlMenu.Height - 1);
+        };
+
+        btnSobre = CriarBotaoMenu("Sobre o Sistema", 15);
+        btnSobre.Click += (s, e) => { AtivarBotaoMenu(btnSobre); _navigationService.NavigateTo<SobreView>(); };
+
+       
+
+        btnCadastros = CriarBotaoMenu("Cadastros ▾", 205);
+        var menuCadastros = new ContextMenuStrip
+        {
+            Font = new Font("Segoe UI", 9.5F),
+            BackColor = Color.White,
+            ShowImageMargin = false
+        };
+        menuCadastros.Items.Add("Participantes", null, (s, e) =>
+        {
+            AtivarBotaoMenu(btnCadastros);
+            _navigationService.NavigateTo<CadastradosView>();
+        });
+        menuCadastros.Items.Add("Jurados", null, (s, e) =>
+        {
+            AtivarBotaoMenu(btnCadastros);
+            _navigationService.NavigateTo<JuradosView>();
+        });
+        menuCadastros.Items.Add("Critérios", null, (s, e) =>
+        {
+            AtivarBotaoMenu(btnCadastros);
+            _navigationService.NavigateTo<CriteriosView>();
+        });
+        btnCadastros.Click += (s, e) =>
+        {
+            AtivarBotaoMenu(btnCadastros);
+            menuCadastros.Show(btnCadastros, new Point(0, btnCadastros.Height));
+        }; 
+
+        btnApuracao = CriarBotaoMenu("Apuração de Notas", 395);
+        btnApuracao.Click += (s, e) => { AtivarBotaoMenu(btnApuracao); _navigationService.NavigateTo<ApuracaoNotasView>(); };
+
+        btnResultados = CriarBotaoMenu("Consultas",585);
+        btnResultados.Click += (s, e) => { AtivarBotaoMenu(btnResultados); _navigationService.NavigateTo<ResultadosSqlView>(); };
+
+        var btnDiculgacao = CriarBotaoMenu("Resultados", 775);
+        btnDiculgacao.Click += (s, e) => { AtivarBotaoMenu(btnDiculgacao); _navigationService.NavigateTo<DiculgacaoView>(); };
+
+        pnlMenu.Controls.AddRange(new Control[] { btnSobre, btnResultados, btnCadastros, btnApuracao, btnDiculgacao });
+
+        // 4. ÁREA CENTRAL
+        pnlConteudo = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(248, 250, 252)
+        };
+
+        this.Controls.Add(pnlConteudo);
+        this.Controls.Add(pnlMenu);
+        this.Controls.Add(pnlRodape);
+        this.Controls.Add(pnlCabecalho);
+
+        _navigationService.SetContainer(pnlConteudo);
+        this.Load += (s, e) =>
+        {
+            AtivarBotaoMenu(btnSobre);
+            _navigationService.NavigateTo<SobreView>();
+        };
+    }
+
+    private Button CriarBotaoMenu(string texto, int left)
+    {
+        return new Button
+        {
+            Text = texto,
+            Location = new Point(left, 7),
+            Size = new Size(180, 38),
+            FlatStyle = FlatStyle.Flat,
+            FlatAppearance = { BorderSize = 0 },
+            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(71, 85, 105),
+            BackColor = Color.White,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Cursor = Cursors.Hand
+        };
+    }
+
+    private void AtivarBotaoMenu(Button ativo)
+    {
+        foreach (Control c in pnlMenu.Controls)
+        {
+            if (c is Button b)
+            {
+                b.BackColor = Color.White;
+                b.ForeColor = Color.FromArgb(71, 85, 105);
+            }
+        }
+        ativo.BackColor = Color.FromArgb(238, 242, 255);
+        ativo.ForeColor = Color.FromArgb(37, 99, 235);
+    }
+}
