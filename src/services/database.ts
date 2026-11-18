@@ -474,29 +474,111 @@ export const apuracaoNotasService = {
 };
 
 // ===== CONSULTAS & LIMPEZA DE BANCO =====
+export function pesquisarConsultasEmEstado(state: DatabaseState, termo = ''): ConsultaSalva[] {
+  const ordenadas = [...state.Consultas].sort((a, b) =>
+    a.Titulo.localeCompare(b.Titulo, 'pt-BR', { sensitivity: 'base' })
+  );
+  const q = termo.trim().toLowerCase();
+  if (!q) return ordenadas;
+  return ordenadas.filter(
+    (c) =>
+      c.Titulo.toLowerCase().includes(q) ||
+      c.SQL.toLowerCase().includes(q) ||
+      String(c.Id) === q
+  );
+}
+
+export function salvarConsultaEmEstado(
+  state: DatabaseState,
+  dto: { Id: number; Titulo: string; SQL: string }
+): { state: DatabaseState; consulta: ConsultaSalva } {
+  const titulo = dto.Titulo.trim();
+  const sql = dto.SQL.trim();
+
+  if (!titulo) throw new Error('O título da consulta é obrigatório.');
+  if (!sql) throw new Error('O comando SQL é obrigatório.');
+
+  const linhas = sql.replace(/\r\n/g, '\n').split('\n').length;
+  if (linhas > 40000) throw new Error('O SQL pode ter no máximo 40.000 linhas.');
+
+  const cloned: DatabaseState = {
+    ...state,
+    Consultas: state.Consultas.map((c) => ({ ...c })),
+    Auditoria: [...state.Auditoria],
+    nextIds: { ...state.nextIds },
+  };
+
+  if (dto.Id === 0) {
+    const nova: ConsultaSalva = {
+      Id: cloned.nextIds.Consultas++,
+      Titulo: titulo,
+      SQL: sql,
+    };
+    cloned.Consultas.push(nova);
+    registrarAuditoria(cloned, 'SALVAR_CONSULTA', `Consulta '${titulo}' (ID: ${nova.Id}) salva.`);
+    return { state: cloned, consulta: nova };
+  }
+
+  const existente = cloned.Consultas.find((c) => c.Id === dto.Id);
+  if (!existente) {
+    throw new Error('Consulta não encontrada para atualização.');
+  }
+
+  existente.Titulo = titulo;
+  existente.SQL = sql;
+  registrarAuditoria(cloned, 'ALTERACAO_CONSULTA', `Consulta '${titulo}' (ID: ${dto.Id}) alterada.`);
+  return { state: cloned, consulta: { ...existente } };
+}
+
+export function excluirConsultaEmEstado(state: DatabaseState, id: number): DatabaseState {
+  const existente = state.Consultas.find((c) => c.Id === id);
+  if (!existente) {
+    throw new Error('Consulta não encontrada para exclusão.');
+  }
+
+  const cloned: DatabaseState = {
+    ...state,
+    Consultas: state.Consultas.filter((c) => c.Id !== id),
+    Auditoria: [...state.Auditoria],
+    nextIds: { ...state.nextIds },
+  };
+  registrarAuditoria(
+    cloned,
+    'EXCLUSAO_CONSULTA',
+    `Consulta '${existente.Titulo}' (ID: ${id}) excluída.`
+  );
+  return cloned;
+}
+
 export const consultasService = {
   obterTodas(): ConsultaSalva[] {
-    return [...loadDb().Consultas].sort((a, b) => a.Titulo.localeCompare(b.Titulo, 'pt-BR', { sensitivity: 'base' }));
+    return pesquisarConsultasEmEstado(loadDb());
+  },
+
+  pesquisar(termo: string): ConsultaSalva[] {
+    return pesquisarConsultasEmEstado(loadDb(), termo);
+  },
+
+  obterPorId(id: number): ConsultaSalva | undefined {
+    return loadDb().Consultas.find((c) => c.Id === id);
+  },
+
+  salvarRegistro(dto: { Id: number; Titulo: string; SQL: string }): ConsultaSalva {
+    const db = loadDb();
+    const { state, consulta } = salvarConsultaEmEstado(db, dto);
+    saveDb(state);
+    return consulta;
   },
 
   salvar(titulo: string, sql: string): ConsultaSalva {
-    const t = titulo.trim();
-    const s = sql.trim();
-    if (!t || !s) throw new Error('Informe o título e o SQL antes de salvar a consulta.');
+    return this.salvarRegistro({ Id: 0, Titulo: titulo, SQL: sql });
+  },
 
-    const linhas = s.replace(/\r\n/g, '\n').split('\n').length;
-    if (linhas > 40000) throw new Error('O SQL pode ter no máximo 40.000 linhas.');
-
+  excluir(id: number): boolean {
     const db = loadDb();
-    const nova: ConsultaSalva = {
-      Id: db.nextIds.Consultas++,
-      Titulo: t,
-      SQL: s,
-    };
-    db.Consultas.push(nova);
-    registrarAuditoria(db, 'SALVAR_CONSULTA', `Consulta '${t}' salva.`);
-    saveDb(db);
-    return nova;
+    const nextState = excluirConsultaEmEstado(db, id);
+    saveDb(nextState);
+    return true;
   },
 
   limparBanco(): number {
