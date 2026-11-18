@@ -1,0 +1,5 @@
+{
+  "name": "Avaliação de Modelos – Sistema de Votação",
+  "description": "Sistema eletrônico de avaliação e classificação de participantes em concursos com cadastro de participantes, jurados, critérios, apuração de notas, consultas SQL e exportação em PDF.",
+  "requestFramePermissions": []
+}
